@@ -89,6 +89,8 @@ If the answer does not exist in the documents, say so clearly and advise the coa
 
 
 def load_knowledge_base() -> str:
+    if not OUTPUT_DIR.exists():
+        return ""
     md_files = sorted(OUTPUT_DIR.glob("*.md"))
     if not md_files:
         return ""
