@@ -110,6 +110,11 @@ FULL_SYSTEM_PROMPT = (
 )
 
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    return jsonify({"error": str(e)}), 500
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -117,33 +122,37 @@ def index():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    data = request.get_json()
-    if not data or "message" not in data:
-        return jsonify({"error": "Missing message"}), 400
+    try:
+        data = request.get_json()
+        if not data or "message" not in data:
+            return jsonify({"error": "Missing message"}), 400
 
-    history = data.get("history", [])
-    user_message = data["message"].strip()
-    if not user_message:
-        return jsonify({"error": "Empty message"}), 400
+        history = data.get("history", [])
+        user_message = data["message"].strip()
+        if not user_message:
+            return jsonify({"error": "Empty message"}), 400
 
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        return jsonify({"error": "OPENAI_API_KEY not configured"}), 500
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            return jsonify({"error": "OPENAI_API_KEY not configured on server"}), 500
 
-    client = OpenAI(api_key=api_key)
+        client = OpenAI(api_key=api_key)
 
-    messages = [{"role": "system", "content": FULL_SYSTEM_PROMPT}]
-    messages += history
-    messages.append({"role": "user", "content": user_message})
+        messages = [{"role": "system", "content": FULL_SYSTEM_PROMPT}]
+        messages += history
+        messages.append({"role": "user", "content": user_message})
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        max_tokens=4096,
-        messages=messages,
-    )
+        response = client.chat.completions.create(
+            model=MODEL,
+            max_tokens=4096,
+            messages=messages,
+        )
 
-    reply = response.choices[0].message.content
-    return jsonify({"reply": reply})
+        reply = response.choices[0].message.content
+        return jsonify({"reply": reply})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
