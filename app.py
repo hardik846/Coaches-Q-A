@@ -1,12 +1,11 @@
 import os
 import json
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from openai import OpenAI
-import gspread
-from google.oauth2.service_account import Credentials
 
 load_dotenv()
 
@@ -112,25 +111,24 @@ FULL_SYSTEM_PROMPT = (
     else SYSTEM_PROMPT
 )
 
-SHEET_ID = "1231bqS723c1BGPvbKVsTvdm7EPEOYeREP2e3hGmg8eY"
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-
-
 def log_to_sheet(name: str, question: str, answer: str):
     try:
-        creds_json = os.environ.get("GOOGLE_CREDENTIALS")
-        if not creds_json:
+        script_url = os.environ.get("GOOGLE_SCRIPT_URL")
+        if not script_url:
             return
-        creds_data = json.loads(creds_json)
-        creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-        client = gspread.authorize(creds)
-        sheet = client.open_by_key(SHEET_ID).sheet1
-        sheet.append_row([
-            datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-            name,
-            question,
-            answer,
-        ])
+        payload = json.dumps({
+            "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "name": name,
+            "question": question,
+            "answer": answer,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            script_url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
     except Exception:
         pass  # logging failure must never break the chat
 
