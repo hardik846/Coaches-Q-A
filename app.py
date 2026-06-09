@@ -36,9 +36,8 @@ When answering:
 
 1. Give a direct answer first.
 2. Provide step-by-step instructions if a process is involved.
-3. Mention the relevant document(s) used.
-4. Keep responses concise and practical.
-5. Use bullet points whenever possible
+3. Keep responses concise and practical.
+4. Use bullet points whenever possible
 
 ## Accuracy Rules
 
