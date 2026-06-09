@@ -1,8 +1,12 @@
 import os
+import json
+from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from openai import OpenAI
+import gspread
+from google.oauth2.service_account import Credentials
 
 load_dotenv()
 
@@ -108,6 +112,28 @@ FULL_SYSTEM_PROMPT = (
     else SYSTEM_PROMPT
 )
 
+SHEET_ID = "1231bqS723c1BGPvbKVsTvdm7EPEOYeREP2e3hGmg8eY"
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
+
+def log_to_sheet(name: str, question: str, answer: str):
+    try:
+        creds_json = os.environ.get("GOOGLE_CREDENTIALS")
+        if not creds_json:
+            return
+        creds_data = json.loads(creds_json)
+        creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        sheet.append_row([
+            datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            name,
+            question,
+            answer,
+        ])
+    except Exception:
+        pass  # logging failure must never break the chat
+
 
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -128,6 +154,7 @@ def chat():
 
         history = data.get("history", [])
         user_message = data["message"].strip()
+        coach_name = data.get("name", "Unknown").strip() or "Unknown"
         if not user_message:
             return jsonify({"error": "Empty message"}), 400
 
@@ -148,6 +175,7 @@ def chat():
         )
 
         reply = response.choices[0].message.content
+        log_to_sheet(coach_name, user_message, reply)
         return jsonify({"reply": reply})
 
     except Exception as e:
